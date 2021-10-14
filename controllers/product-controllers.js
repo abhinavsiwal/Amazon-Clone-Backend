@@ -42,8 +42,8 @@ const newProduct = async (req, res, next) => {
 // -----Get all Products-----
 //------Search=>/api/products?keyword=apple
 const getProducts = async (req, res, next) => {
-    const queryStr = req.query.keyword;
-  const apiFeatures = new APIFeatures(Product.find(),queryStr).search();
+    const queryStr = req.query;
+  const apiFeatures = new APIFeatures(Product.find(),queryStr).search().filter();
   let products;
   try {
     products = await apiFeatures.query;
