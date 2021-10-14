@@ -1,9 +1,139 @@
+const Product = require("../models/product");
 
-const getProducts = (req,res,next)=>{
-    res.status(200).json({
-        success:true,
-        message:"This route will show all products in Database",
-    })
-}
+// -----Create New Product-----
+const newProduct = async (req, res, next) => {
+  const {
+    name,
+    price,
+    description,
+    ratings,
+    images,
+    category,
+    seller,
+    stock,
+    numOfReviews,
+    reviews,
+  } = req.body;
 
-exports.getProducts=getProducts;
+  try {
+    const product = await Product.create({
+        name,
+        price,
+        description,
+        ratings,
+        images,
+        category,
+        seller,
+        stock,
+        numOfReviews,
+        reviews,
+    });
+    res.status(201).json({
+      success: true,
+      product,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(400).json({ message: "Adding Product Failed" });
+  }
+};
+
+// -----Get all Products-----
+
+const getProducts = async (req, res, next) => {
+  let products;
+  try {
+    products = await Product.find();
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Fetching Products Failed" });
+  }
+
+  res.status(200).json({
+    success: true,
+    count: products.length,
+    products: products.map((product) => product.toObject()),
+  });
+};
+
+// ----Get Product by product id
+const getProductById = async (req, res, next) => {
+  const productId = req.params.id;
+  let product;
+  try {
+    product = await Product.findById(productId);
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Fetching product failed" });
+  }
+  if (!product) {
+    return res
+      .status(500)
+      .json({ message: "Could not find product for this id" });
+  }
+  res.json(product);
+};
+
+//-----Update Product
+const updateProduct = async (req, res, next) => {
+  const productId = req.params.id;
+  let product;
+  try {
+    product = await Product.findById(productId);
+  } catch (err) {
+    console.log(err);
+    return res
+      .status(500)
+      .json({ message: "Something Went Wrong in Update Product" });
+  }
+  if (!product) {
+    return res
+      .status(500)
+      .json({ message: "Could not find product for this id" });
+  }
+  try {
+    product = await Product.findByIdAndUpdate(productId, req.body, {
+      new: true,
+      runValidators: true,
+      useFindAndModify: false,
+    });
+  } catch (err) {
+    console.log(err);
+    return res
+      .status(500)
+      .json({ message: "Something Went Wrong in Update Product" });
+  }
+  res.status(200).json(product.toObject());
+};
+
+// -----Delete Product-----
+const deleteProduct = async (req, res, next) => {
+  const productId = req.params.id;
+  let product;
+  try {
+    product = await Product.findById(productId);
+  } catch (err) {
+    console.log(err);
+    return res
+      .status(500)
+      .json({ message: "Something went wrong in delete Product" });
+  }
+  if (!product) {
+    return res
+      .status(500)
+      .json({ message: "Could not find product for this id" });
+  }
+  try {
+    await product.remove();
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Product could not be deleted" });
+  }
+  res.status(200).json({ message: "Product deleted Successfully" });
+};
+
+exports.newProduct = newProduct;
+exports.getProducts = getProducts;
+exports.getProductById = getProductById;
+exports.updateProduct = updateProduct;
+exports.deleteProduct = deleteProduct;
