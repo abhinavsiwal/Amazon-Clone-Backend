@@ -42,9 +42,15 @@ const newProduct = async (req, res, next) => {
 // -----Get all Products-----
 //------Search=>/api/products?keyword=apple
 const getProducts = async (req, res, next) => {
-    const queryStr = req.query;
-  const apiFeatures = new APIFeatures(Product.find(),queryStr).search().filter();
+  const queryStr = req.query;
+  const resPerPage = 1; //How many products we wanna display in one page
+  const productCount= await Product.countDocuments();
+  const apiFeatures = new APIFeatures(Product.find(), queryStr)
+    .search()
+    .filter()
+    .pagination(resPerPage);
   let products;
+
   try {
     products = await apiFeatures.query;
   } catch (err) {
@@ -55,6 +61,7 @@ const getProducts = async (req, res, next) => {
   res.status(200).json({
     success: true,
     count: products.length,
+    productCount,
     products: products.map((product) => product.toObject()),
   });
 };
@@ -81,6 +88,7 @@ const getProductById = async (req, res, next) => {
 const updateProduct = async (req, res, next) => {
   const productId = req.params.id;
   let product;
+
   try {
     product = await Product.findById(productId);
   } catch (err) {
