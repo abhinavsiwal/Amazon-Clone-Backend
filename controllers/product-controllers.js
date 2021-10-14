@@ -1,4 +1,5 @@
 const Product = require("../models/product");
+const APIFeatures = require("../utils/api-features");
 
 // -----Create New Product-----
 const newProduct = async (req, res, next) => {
@@ -17,16 +18,16 @@ const newProduct = async (req, res, next) => {
 
   try {
     const product = await Product.create({
-        name,
-        price,
-        description,
-        ratings,
-        images,
-        category,
-        seller,
-        stock,
-        numOfReviews,
-        reviews,
+      name,
+      price,
+      description,
+      ratings,
+      images,
+      category,
+      seller,
+      stock,
+      numOfReviews,
+      reviews,
     });
     res.status(201).json({
       success: true,
@@ -39,11 +40,13 @@ const newProduct = async (req, res, next) => {
 };
 
 // -----Get all Products-----
-
+//------Search=>/api/products?keyword=apple
 const getProducts = async (req, res, next) => {
+    const queryStr = req.query.keyword;
+  const apiFeatures = new APIFeatures(Product.find(),queryStr).search();
   let products;
   try {
-    products = await Product.find();
+    products = await apiFeatures.query;
   } catch (err) {
     console.log(err);
     return res.status(500).json({ message: "Fetching Products Failed" });
