@@ -1,6 +1,7 @@
 const User = require("../models/user");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const sendToken = require("../utils/jwtToken");
 //Register a User
 exports.registerUser = async (req, res, next) => {
   const { name, email, password } = req.body;
@@ -56,10 +57,7 @@ exports.registerUser = async (req, res, next) => {
   } catch (err) {
       console.log(err)
   }
-  res.status(201).json({
-    success: true,
-    token,
-  });
+  sendToken(createdUser,token,200,res);
 };
 
 // Login user
@@ -98,8 +96,5 @@ exports.loginUser = async (req, res, next) => {
   } catch (err) {
       console.log(err);
   }
-  res.status(200).json({
-      success:true,
-      token,
-  })
+  sendToken(existingUser,token,200,res);
 };
