@@ -1,5 +1,6 @@
 const User = require("../models/user");
 const bcrypt = require("bcrypt");
+const crypto = require('crypto');
 const jwt = require("jsonwebtoken");
 const sendToken = require("../utils/jwtToken");
 const sendEmail=require('../utils/sendEmail');
@@ -137,7 +138,7 @@ exports.forgotPassword = async (req, res, next) => {
   //Create reset password Url
   const resetUrl = `${req.protocol}://${req.get(
     "host"
-  )}/api/reset/${resetToken}`;
+  )}/api/password/reset/${resetToken}`;
   console.log(resetUrl);
   const message = `Your password reset token is as follow:\n\n${resetUrl}\n\nIf you have not requested this email,then ignore it.`;
   try{
@@ -157,3 +158,45 @@ exports.forgotPassword = async (req, res, next) => {
     return res.status(500).json({ message: "Something went wrong" });
   }
 };
+
+//Reset Password
+exports.resetPassword=async(req,res,next)=>{
+  //Hash URL Token
+  const resetPasswordToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
+  let user;
+  try{
+    user = await User.findOne({
+      resetPasswordToken,
+      resetPasswordExpire:{$gt:Date.now()}
+    })
+  }catch(err){
+    console.log(err);
+  }
+  if(!user){
+    return res.status(400).json({message:"Password Reset Token is invalid or has been expired"});
+  }
+
+  if(req.body.password!==req.body.confirmPassword){
+    return res.status(401).json({message:"Password do not match"});
+  }
+
+  //Setup new Password
+  user.password = req.body.password;
+  user.resetPasswordToken = undefined;
+  user.resetPasswordExpire = undefined;
+
+  try{
+    await user.save();
+  }catch(err){
+    console.log(err);
+  }
+  let token;
+  try {
+    token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
+  } catch (err) {
+    console.log(err);
+  }
+  sendToken(user,token,200,res)
+}
