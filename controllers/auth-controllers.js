@@ -2,6 +2,7 @@ const User = require("../models/user");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const sendToken = require("../utils/jwtToken");
+const sendEmail=require('../utils/sendEmail');
 //Register a User
 exports.registerUser = async (req, res, next) => {
   const { name, email, password } = req.body;
@@ -55,9 +56,9 @@ exports.registerUser = async (req, res, next) => {
       { expiresIn: "7d" }
     );
   } catch (err) {
-      console.log(err)
+    console.log(err);
   }
-  sendToken(createdUser,token,200,res);
+  sendToken(createdUser, token, 200, res);
 };
 
 // Login user
@@ -94,20 +95,65 @@ exports.loginUser = async (req, res, next) => {
       expiresIn: "7d",
     });
   } catch (err) {
-      console.log(err);
+    console.log(err);
   }
-  sendToken(existingUser,token,200,res);
+  sendToken(existingUser, token, 200, res);
 };
 
 // Logout User
-exports.logoutUser=(req,res,next)=>{
-  res.cookie('token',null,{
-    expires:new Date(Date.now()),
-    httpOnly:true,
+exports.logoutUser = (req, res, next) => {
+  res.cookie("token", null, {
+    expires: new Date(Date.now()),
+    httpOnly: true,
   });
   res.status(200).json({
-    success:true,
-    message:"Logout Successfully"
-  })
-}
+    success: true,
+    message: "Logout Successfully",
+  });
+};
 
+// Forgot Password
+exports.forgotPassword = async (req, res, next) => {
+  const { email } = req.body;
+  let user;
+  try {
+   user = await User.findOne({ email: email });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Something went wrong" });
+  }
+  if (!user) {
+    return res.status(500).json({ message: "User not found with this email" });
+  }
+  //Get reset token
+  const resetToken = user.getResetPasswordToken();
+
+  try {
+    await user.save({ validateBeforeSave: false });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Something went wrong" });
+  }
+  //Create reset password Url
+  const resetUrl = `${req.protocol}://${req.get(
+    "host"
+  )}/api/reset/${resetToken}`;
+  console.log(resetUrl);
+  const message = `Your password reset token is as follow:\n\n${resetUrl}\n\nIf you have not requested this email,then ignore it.`;
+  try{
+    await sendEmail({
+      email:user.email,
+      subject:'Amazon Password Recovery',
+      message
+    })
+    res.status(200).json({
+      success:true,
+      message:`Email sent to ${user.email}`
+    })
+  }catch(err){
+    user.resetPasswordToken=undefined;
+    user.resetPasswordExpire=undefined;
+    console.log(err);
+    return res.status(500).json({ message: "Something went wrong" });
+  }
+};
