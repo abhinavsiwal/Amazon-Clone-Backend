@@ -49,7 +49,7 @@ exports.registerUser = async (req, res, next) => {
   try {
     token = jwt.sign(
       {
-        id: this._id,
+        id: createdUser._id,
       },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
@@ -90,7 +90,7 @@ exports.loginUser = async (req, res, next) => {
   }
   let token;
   try {
-    token = jwt.sign({ userId: existingUser._id }, process.env.JWT_SECRET, {
+    token = jwt.sign({ id: existingUser._id }, process.env.JWT_SECRET, {
       expiresIn: "7d",
     });
   } catch (err) {
@@ -98,3 +98,16 @@ exports.loginUser = async (req, res, next) => {
   }
   sendToken(existingUser,token,200,res);
 };
+
+// Logout User
+exports.logoutUser=(req,res,next)=>{
+  res.cookie('token',null,{
+    expires:new Date(Date.now()),
+    httpOnly:true,
+  });
+  res.status(200).json({
+    success:true,
+    message:"Logout Successfully"
+  })
+}
+
