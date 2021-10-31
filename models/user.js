@@ -41,6 +41,12 @@ const userSchema = new mongoose.Schema({
     resetPasswordExpire:Date,   
 
 })
+
+// //Compare Password
+// userSchema.methods.comparePassword = async function(enteredPassword){
+//     return await bcrypt.compare(enteredPassword,this.password);
+// }
+
 //Generate Password Reset Token
 userSchema.methods.getResetPasswordToken=function(){
     //Generate token

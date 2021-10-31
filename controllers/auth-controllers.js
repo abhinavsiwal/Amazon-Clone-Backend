@@ -200,3 +200,48 @@ exports.resetPassword=async(req,res,next)=>{
   }
   sendToken(user,token,200,res)
 }
+
+//Get currently logged in user details
+exports.getUserProfile=async(req,res,next)=>{
+  const user  = await User.findById(req.user.id);
+  res.status(200).json({
+    success:true,
+    user 
+  })
+}
+
+//Update/Change Password
+exports.changePassword=async(req,res,next)=>{
+  let user;
+  try{
+    user = await User.findById(req.user.id).select('+password');
+  }catch(err){
+    console.log(err);
+    return res.status(500).json({message:"Error Occured"});
+  }
+  //Check previous user password
+  let isValidPassword = false;
+  try {
+    isValidPassword = await bcrypt.compare(req.body.oldPassword, user.password);
+  } catch (err) {
+    console.log(err);
+    return res
+      .status(500)
+      .json({ message: "Login failed, Please try again later." });
+  }
+  if (!isValidPassword) {
+    return res.status(401).json({ message: "Old Password is Incorrect" });
+  }
+  user.password = req.body.password;
+  await user.save();
+  let token;
+  try {
+    token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
+  } catch (err) {
+    console.log(err);
+  }
+  sendToken(user, token, 200, res);
+};
+
