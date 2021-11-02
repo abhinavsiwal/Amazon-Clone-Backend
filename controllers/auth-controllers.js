@@ -309,3 +309,52 @@ exports.getUserDetails=async(req,res,next)=>{
   })
 
 }
+
+//Update user profile admin
+exports.updateUser = async (req, res, next) => {
+  const { name, email ,role} = req.body;
+  const newUserData = {
+    name,
+    email,
+    role
+  };
+  try {
+    const user = await User.findByIdAndUpdate(req.params.id, newUserData, {
+      new: true,
+      runValidators: true,
+      useFindAndModify: false,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Update User Failed" });
+  }
+  res.status(200).json({
+    success: true,
+    message: "User updated Successfull",
+  });
+};
+
+
+// Delete User-admin
+exports.deleteUser=async(req,res,next)=>{
+  let user;
+  try {
+    user= await User.findById(req.params.id);
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({message:`User does not found with id:${req.params.id}`})
+  }
+  if(!user){
+    return res.status(500).json({message:`User does not found with id:${req.params.id}`})
+  } 
+  //Remove Avatar from Cloudnary -todo
+  try {
+    await user.remove();
+  } catch (err) {
+    console.log(err);
+  }
+  res.status(200).json({
+    success:true,
+  })
+
+}
