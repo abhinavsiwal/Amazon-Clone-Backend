@@ -1,9 +1,9 @@
 const User = require("../models/user");
 const bcrypt = require("bcrypt");
-const crypto = require('crypto');
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const sendToken = require("../utils/jwtToken");
-const sendEmail=require('../utils/sendEmail');
+const sendEmail = require("../utils/sendEmail");
 //Register a User
 exports.registerUser = async (req, res, next) => {
   const { name, email, password } = req.body;
@@ -118,7 +118,7 @@ exports.forgotPassword = async (req, res, next) => {
   const { email } = req.body;
   let user;
   try {
-   user = await User.findOne({ email: email });
+    user = await User.findOne({ email: email });
   } catch (err) {
     console.log(err);
     return res.status(500).json({ message: "Something went wrong" });
@@ -141,43 +141,48 @@ exports.forgotPassword = async (req, res, next) => {
   )}/api/password/reset/${resetToken}`;
   console.log(resetUrl);
   const message = `Your password reset token is as follow:\n\n${resetUrl}\n\nIf you have not requested this email,then ignore it.`;
-  try{
+  try {
     await sendEmail({
-      email:user.email,
-      subject:'Amazon Password Recovery',
-      message
-    })
+      email: user.email,
+      subject: "Amazon Password Recovery",
+      message,
+    });
     res.status(200).json({
-      success:true,
-      message:`Email sent to ${user.email}`
-    })
-  }catch(err){
-    user.resetPasswordToken=undefined;
-    user.resetPasswordExpire=undefined;
+      success: true,
+      message: `Email sent to ${user.email}`,
+    });
+  } catch (err) {
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
     console.log(err);
     return res.status(500).json({ message: "Something went wrong" });
   }
 };
 
 //Reset Password
-exports.resetPassword=async(req,res,next)=>{
+exports.resetPassword = async (req, res, next) => {
   //Hash URL Token
-  const resetPasswordToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
+  const resetPasswordToken = crypto
+    .createHash("sha256")
+    .update(req.params.token)
+    .digest("hex");
   let user;
-  try{
+  try {
     user = await User.findOne({
       resetPasswordToken,
-      resetPasswordExpire:{$gt:Date.now()}
-    })
-  }catch(err){
+      resetPasswordExpire: { $gt: Date.now() },
+    });
+  } catch (err) {
     console.log(err);
   }
-  if(!user){
-    return res.status(400).json({message:"Password Reset Token is invalid or has been expired"});
+  if (!user) {
+    return res
+      .status(400)
+      .json({ message: "Password Reset Token is invalid or has been expired" });
   }
 
-  if(req.body.password!==req.body.confirmPassword){
-    return res.status(401).json({message:"Password do not match"});
+  if (req.body.password !== req.body.confirmPassword) {
+    return res.status(401).json({ message: "Password do not match" });
   }
 
   //Setup new Password
@@ -185,9 +190,9 @@ exports.resetPassword=async(req,res,next)=>{
   user.resetPasswordToken = undefined;
   user.resetPasswordExpire = undefined;
 
-  try{
+  try {
     await user.save();
-  }catch(err){
+  } catch (err) {
     console.log(err);
   }
   let token;
@@ -198,26 +203,26 @@ exports.resetPassword=async(req,res,next)=>{
   } catch (err) {
     console.log(err);
   }
-  sendToken(user,token,200,res)
-}
+  sendToken(user, token, 200, res);
+};
 
 //Get currently logged in user details
-exports.getUserProfile=async(req,res,next)=>{
-  const user  = await User.findById(req.user.id);
+exports.getUserProfile = async (req, res, next) => {
+  const user = await User.findById(req.user.id);
   res.status(200).json({
-    success:true,
-    user 
-  })
-}
+    success: true,
+    user,
+  });
+};
 
 //Update/Change Password
-exports.changePassword=async(req,res,next)=>{
+exports.changePassword = async (req, res, next) => {
   let user;
-  try{
-    user = await User.findById(req.user.id).select('+password');
-  }catch(err){
+  try {
+    user = await User.findById(req.user.id).select("+password");
+  } catch (err) {
     console.log(err);
-    return res.status(500).json({message:"Error Occured"});
+    return res.status(500).json({ message: "Error Occured" });
   }
   //Check previous user password
   let isValidPassword = false;
@@ -245,3 +250,45 @@ exports.changePassword=async(req,res,next)=>{
   sendToken(user, token, 200, res);
 };
 
+// Update user profile
+exports.updateProfile = async (req, res, next) => {
+  const { name, email } = req.body;
+  const newUserData = {
+    name,
+    email,
+  };
+  //Update Avatar :todo
+  try {
+    const user = await User.findByIdAndUpdate(req.user.id, newUserData, {
+      new: true,
+      runValidators: true,
+      useFindAndModify: false,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Update User Failed" });
+  }
+  res.status(200).json({
+    success: true,
+    message: "User updated Successfull",
+  });
+};
+
+// Admin Routes
+
+// Get all Users
+exports.allUser = async(req,res,next)=>{
+  let users;
+  try {
+     users = await User.find();
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({message:"Getting users failed"});
+  }
+   return res.status(200).json({
+     success:true,
+     users,
+   })
+}
+
+// 
