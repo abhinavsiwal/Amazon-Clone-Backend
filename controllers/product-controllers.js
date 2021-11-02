@@ -16,6 +16,8 @@ const newProduct = async (req, res, next) => {
     reviews,
   } = req.body;
 
+  user=req.user.id;
+
   try {
     const product = await Product.create({
       name,
@@ -28,6 +30,7 @@ const newProduct = async (req, res, next) => {
       stock,
       numOfReviews,
       reviews,
+      user,
     });
     res.status(201).json({
       success: true,
