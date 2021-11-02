@@ -291,4 +291,21 @@ exports.allUser = async(req,res,next)=>{
    })
 }
 
-// 
+// Get user details
+exports.getUserDetails=async(req,res,next)=>{
+  let user;
+  try {
+    user= await User.findById(req.params.id);
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({message:`User does not found with id:${req.params.id}`})
+  }
+  if(!user){
+    return res.status(500).json({message:`User does not found with id:${req.params.id}`})
+  } 
+  res.status(200).json({
+    success:true,
+    user,
+  })
+
+}
