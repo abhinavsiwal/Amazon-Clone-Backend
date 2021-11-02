@@ -16,7 +16,7 @@ const newProduct = async (req, res, next) => {
     reviews,
   } = req.body;
 
-  user=req.user.id;
+  user = req.user.id;
 
   try {
     const product = await Product.create({
@@ -46,8 +46,8 @@ const newProduct = async (req, res, next) => {
 //------Search=>/api/products?keyword=apple
 const getProducts = async (req, res, next) => {
   const queryStr = req.query;
-  const resPerPage = 1; //How many products we wanna display in one page
-  const productCount= await Product.countDocuments();
+  const resPerPage = 10; //How many products we wanna display in one page
+  const productCount = await Product.countDocuments();
   const apiFeatures = new APIFeatures(Product.find(), queryStr)
     .search()
     .filter()
@@ -146,8 +146,111 @@ const deleteProduct = async (req, res, next) => {
   res.status(200).json({ message: "Product deleted Successfully" });
 };
 
+// Create new Review
+const createProductReview = async (req, res, next) => {
+  const { rating, comment, productId } = req.body;
+  const review = {
+    user: req.user._id,
+    name: req.user.name,
+    rating: Number(rating),
+    comment,
+  };
+  let product;
+  try {
+    product = await Product.findById(productId);
+  } catch (err) {
+    console.log(err);
+    return res
+      .status(404)
+      .json({ message: "Something went wrong in Getting Product" });
+  }
+  const isReviewed = product.reviews.find(
+    (r) => r.user.toString() === req.user._id.toString()
+  );
+  if (isReviewed) {
+    product.reviews.forEach((review) => {
+      if (review.user.toString() === req.user._id.toString()) {
+        review.comment = comment;
+        review.rating = rating;
+      }
+    });
+  } else {
+    product.reviews.push(review);
+    product.numOfReviews = product.reviews.length;
+  }
+  // Calculate Average Ratings
+  product.ratings =product.reviews.reduce((acc,item)=>item.rating+acc,0)/reviews.length;
+
+  try {
+    await product.save({ validateBeforeSave: false });
+  } catch (err) {
+    console.log(err);
+    return res
+      .status(404)
+      .json({ message: "Something went wrong in Saving Product" });
+  }
+  res.status(200).json({ success: true });
+};
+
+// Get Product Reviews
+const getProductReviews = async (req, res) => {
+  let product;
+  try {
+    product = await Product.findById(req.query.id);
+  } catch (err) {
+    console.log(err);
+    return res
+      .status(404)
+      .json({ message: "Something went wrong in Getting Product Reviews" });
+  }
+  res.status(200).json({
+    success: true,
+    reviews: product.reviews,
+  });
+};
+// Delete Product Reviews
+const deleteReview = async (req, res) => {
+  let product;
+  try {
+    product = await Product.findById(req.query.productId);
+  } catch (err) {
+    console.log(err);
+    return res
+      .status(404)
+      .json({ message: "Something went wrong in Getting Product Reviews" });
+  }
+
+  const reviews = product.reviews.filter(
+    (review) => review._id.toString() !== req.query.reviewId.toString()
+  );
+  const numOfReviews = reviews.length;
+
+  const ratings =product.reviews.reduce((acc,item)=>item.rating+acc,0)/reviews.length;
+
+  await Product.findByIdAndUpdate(
+    req.query.productId,
+    {
+      reviews,
+      ratings,
+      numOfReviews,
+    },
+    {
+      new: true,
+      runValidators: true,
+      useFindAndModify: false,
+    }
+  );
+
+  res.status(200).json({
+    success: true,
+  });
+};
+
 exports.newProduct = newProduct;
 exports.getProducts = getProducts;
 exports.getProductById = getProductById;
 exports.updateProduct = updateProduct;
 exports.deleteProduct = deleteProduct;
+exports.createProductReview = createProductReview;
+exports.getProductReviews = getProductReviews;
+exports.deleteReview = deleteReview;
