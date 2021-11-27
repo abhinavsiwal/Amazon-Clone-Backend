@@ -46,25 +46,32 @@ const newProduct = async (req, res, next) => {
 //------Search=>/api/products?keyword=apple
 const getProducts = async (req, res, next) => {
   const queryStr = req.query;
-  const resPerPage = 10; //How many products we wanna display in one page
-  const productCount = await Product.countDocuments();
+  const resPerPage = 8; //How many products we wanna display in one page
+  const productsCount = await Product.countDocuments();
   const apiFeatures = new APIFeatures(Product.find(), queryStr)
     .search()
     .filter()
-    .pagination(resPerPage);
-  let products;
+    
+    let products;
+ 
+
 
   try {
+    
     products = await apiFeatures.query;
   } catch (err) {
     console.log(err);
     return res.status(500).json({ message: "Fetching Products Failed" });
   }
+  let filteredProductsCount = products.length;
+  apiFeatures.pagination(resPerPage);
 
   res.status(200).json({
     success: true,
-    count: products.length,
-    productCount,
+    // count: products.length,
+    resPerPage,
+    productsCount,
+    filteredProductsCount, 
     products: products.map((product) => product.toObject()),
   });
 };

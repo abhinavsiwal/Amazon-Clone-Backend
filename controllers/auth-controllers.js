@@ -4,8 +4,22 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const sendToken = require("../utils/jwtToken");
 const sendEmail = require("../utils/sendEmail");
+const cloudinary = require("cloudinary").v2;
+
 //Register a User
 exports.registerUser = async (req, res, next) => {
+  let result;
+  try {
+    result = await cloudinary.uploader.upload(req.body.avatar, {
+      folder: "Avatars",
+      width: 150,
+      crop: "scale",
+    });
+  } catch (err) {
+    console.log(err);
+    console.log("error in cloudinary");
+  }
+
   const { name, email, password } = req.body;
   let existingUser;
   try {
@@ -35,8 +49,8 @@ exports.registerUser = async (req, res, next) => {
     email,
     password: hashedPassword,
     avatar: {
-      public_id: "IMG_2928-02_chtyat",
-      url: "https://res.cloudinary.com/abhinavsiwal/image/upload/v1634277630/IMG_2928-02_chtyat.jpg",
+      public_id: result.public_id,
+      url: result.secure_url,
     },
   });
   try {
@@ -136,9 +150,10 @@ exports.forgotPassword = async (req, res, next) => {
     return res.status(500).json({ message: "Something went wrong" });
   }
   //Create reset password Url
-  const resetUrl = `${req.protocol}://${req.get(
-    "host"
-  )}/api/password/reset/${resetToken}`;
+  // const resetUrl = `${req.protocol}://${req.get(
+  //   "host"
+  // )}/api/password/reset/${resetToken}`;
+  const resetUrl = `http://localhost:3000/password/reset/${resetToken}`;
   console.log(resetUrl);
   const message = `Your password reset token is as follow:\n\n${resetUrl}\n\nIf you have not requested this email,then ignore it.`;
   try {
@@ -186,7 +201,13 @@ exports.resetPassword = async (req, res, next) => {
   }
 
   //Setup new Password
-  user.password = req.body.password;
+  let hashedPassword;
+  try {
+    hashedPassword = await bcrypt.hash(req.body.password, 12);
+  } catch (err) {
+    console.log(err);
+  }
+  user.password = hashedPassword;
   user.resetPasswordToken = undefined;
   user.resetPasswordExpire = undefined;
 
@@ -202,6 +223,9 @@ exports.resetPassword = async (req, res, next) => {
     });
   } catch (err) {
     console.log(err);
+    return res
+    .status(400)
+    .json({ message: "Unexpected Error" });
   }
   sendToken(user, token, 200, res);
 };
@@ -222,12 +246,13 @@ exports.changePassword = async (req, res, next) => {
     user = await User.findById(req.user.id).select("+password");
   } catch (err) {
     console.log(err);
-    return res.status(500).json({ message: "Error Occured" });
+    return res.status(500).json({ message: "Error Occured in Fetching User." });
   }
   //Check previous user password
   let isValidPassword = false;
   try {
     isValidPassword = await bcrypt.compare(req.body.oldPassword, user.password);
+    console.log(isValidPassword);
   } catch (err) {
     console.log(err);
     return res
@@ -237,7 +262,14 @@ exports.changePassword = async (req, res, next) => {
   if (!isValidPassword) {
     return res.status(401).json({ message: "Old Password is Incorrect" });
   }
-  user.password = req.body.password;
+  let hashedPassword;
+  try {
+    hashedPassword = await bcrypt.hash(req.body.newPassword, 12);
+  } catch (err) {
+    console.log(err);
+  }
+  user.password = hashedPassword;
+
   await user.save();
   let token;
   try {
@@ -257,7 +289,24 @@ exports.updateProfile = async (req, res, next) => {
     name,
     email,
   };
-  //Update Avatar :todo
+  if (req.body.avatar !== "") {
+    try {
+      const user = await User.findById(req.user.id);
+      const image_id = user.avatar.public_id;
+      const res = await cloudinary.uploader.destroy(image_id);
+      const result = await cloudinary.uploader.upload(req.body.avatar, {
+        folder: "Avatars",
+        width: 150,
+        crop: "scale",
+      });
+      newUserData.avatar = {
+        public_id: result.public_id,
+        url: result.secure_url,
+      };
+    } catch (error) {
+      console.log("Error in cloudinary");
+    }
+  }
   try {
     const user = await User.findByIdAndUpdate(req.user.id, newUserData, {
       new: true,
@@ -277,46 +326,49 @@ exports.updateProfile = async (req, res, next) => {
 // Admin Routes
 
 // Get all Users
-exports.allUser = async(req,res,next)=>{
+exports.allUser = async (req, res, next) => {
   let users;
   try {
-     users = await User.find();
+    users = await User.find();
   } catch (err) {
     console.log(err);
-    return res.status(500).json({message:"Getting users failed"});
+    return res.status(500).json({ message: "Getting users failed" });
   }
-   return res.status(200).json({
-     success:true,
-     users,
-   })
-}
+  return res.status(200).json({
+    success: true,
+    users,
+  });
+};
 
 // Get user details
-exports.getUserDetails=async(req,res,next)=>{
+exports.getUserDetails = async (req, res, next) => {
   let user;
   try {
-    user= await User.findById(req.params.id);
+    user = await User.findById(req.params.id);
   } catch (err) {
     console.log(err);
-    return res.status(500).json({message:`User does not found with id:${req.params.id}`})
+    return res
+      .status(500)
+      .json({ message: `User does not found with id:${req.params.id}` });
   }
-  if(!user){
-    return res.status(500).json({message:`User does not found with id:${req.params.id}`})
-  } 
+  if (!user) {
+    return res
+      .status(500)
+      .json({ message: `User does not found with id:${req.params.id}` });
+  }
   res.status(200).json({
-    success:true,
+    success: true,
     user,
-  })
-
-}
+  });
+};
 
 //Update user profile admin
 exports.updateUser = async (req, res, next) => {
-  const { name, email ,role} = req.body;
+  const { name, email, role } = req.body;
   const newUserData = {
     name,
     email,
-    role
+    role,
   };
   try {
     const user = await User.findByIdAndUpdate(req.params.id, newUserData, {
@@ -334,19 +386,22 @@ exports.updateUser = async (req, res, next) => {
   });
 };
 
-
 // Delete User-admin
-exports.deleteUser=async(req,res,next)=>{
+exports.deleteUser = async (req, res, next) => {
   let user;
   try {
-    user= await User.findById(req.params.id);
+    user = await User.findById(req.params.id);
   } catch (err) {
     console.log(err);
-    return res.status(500).json({message:`User does not found with id:${req.params.id}`})
+    return res
+      .status(500)
+      .json({ message: `User does not found with id:${req.params.id}` });
   }
-  if(!user){
-    return res.status(500).json({message:`User does not found with id:${req.params.id}`})
-  } 
+  if (!user) {
+    return res
+      .status(500)
+      .json({ message: `User does not found with id:${req.params.id}` });
+  }
   //Remove Avatar from Cloudnary -todo
   try {
     await user.remove();
@@ -354,7 +409,6 @@ exports.deleteUser=async(req,res,next)=>{
     console.log(err);
   }
   res.status(200).json({
-    success:true,
-  })
-
-}
+    success: true,
+  });
+};
